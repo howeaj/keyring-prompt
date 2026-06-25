@@ -15,14 +15,10 @@ Installation:
 
 Basic usage example:
 ```python
-from keyring_prompt import delete_password, get_password
+from keyring_prompt import with_password
 
-cred_name = "MyCoolApp:https://someservice"
-token = get_password(cred_name)
-try:
+with with_password("MyCoolApp:https://someservice", exc_type=SomeServiceAuthorizationError) as token:
     someservice.login(token)
-except AuthorizationError:
-    delete_password(cred_name)
 ```
 
 Advanced usage example:
@@ -49,6 +45,6 @@ env_vars = ("SOMESERVICE_USER", "SOMESERVICE_TOKEN")
 creds = get_credential(cred_name, prompt=prompt, env_vars=env_vars)
 try:
     someservice.login(creds.username, creds.password)
-except AuthorizationError:
+except SomeServiceAuthorizationError:
     delete_credential(cred_name)
 ```

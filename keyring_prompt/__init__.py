@@ -41,13 +41,6 @@ except ImportError:
 import keyring
 from keyring.credentials import SimpleCredential
 
-try:
-    import keyring_pass  # for linux CLI
-except ImportError:
-    warnings.warn("keyring_pass not available; defaulting to GUI keyring", ImportWarning)
-else:
-    keyring.set_keyring(keyring_pass.PasswordStoreBackend())
-
 
 logger = logging.getLogger("keyring_prompt")
 
@@ -234,3 +227,21 @@ def delete_credential(service: str):
 def delete_password(service: str):
     """Delete any password for `service` stored in keyring."""
     _delete_keyring_entry(service)
+
+
+@contextlib.contextmanager
+def with_password(service: str, *, exc_type: type | tuple[type] = Exception, **kwargs) -> str:
+    """Contextmanager that yields the password for `service`, and deletes it if the context raises `exc_type`.
+
+    Args:
+        service: The name of the keyring entry.
+        exc_type: Either a single subclass of Exception, or a tuple of several,
+                  which should cause any obtained password to be deleted from the credential store.
+        kwargs: passed through to `get_password()`
+    """
+
+    password = get_password(service, **kwargs)
+    try:
+        yield password
+    except exc_type:
+        delete_password(service)
