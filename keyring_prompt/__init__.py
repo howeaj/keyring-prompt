@@ -74,6 +74,20 @@ def _get_password_gui(service: str) -> str | None:
     return _askstring("Password", f"Password for {service}: ", show='*')
 
 
+# TODO use instead of stdin if possible
+def _tty_input(prompt):
+    """Get user input directly from the terminal instead of stdin.
+
+    We can't use input() because stdin is used by _extract_args_from_stdin(),
+    so we use the terminal directly like getpass does (unix only).
+    """
+    with open('/dev/tty', 'w') as tty_out:
+        tty_out.write(prompt)
+        tty_out.flush()
+    with open('/dev/tty', 'r') as tty_in:
+        return tty_in.readline().rstrip('\n')
+
+
 def _get_username_cli(service: str) -> str:
     """Prompt the user to input a username at commandline."""
     can_prefill = "readline" in sys.modules
@@ -83,7 +97,7 @@ def _get_username_cli(service: str) -> str:
             readline.redisplay()
         readline.set_pre_input_hook(_hook)
 
-    result = input(f"Username for {service}: ")
+    result = input(f"Username for {service}: ")  # TODO doesn't work for programs using stdin pipe. see getpass
 
     if can_prefill:
         readline.set_pre_input_hook()
