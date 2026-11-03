@@ -9,11 +9,17 @@ A call to `get_password()` or `get_credential()`:
 If the user-provided credentials are invalid, call `delete_password()` or `delete_credential()`
 to clear them for re-entry on next attempt.
 
+This package also provides command-line programs `keyring-prompt-run` and `keyring-prompt-delete`
+to easily supply keyring credentials to other commands via environment variables.
+
 Installation:
 
     pip install keyring-prompt
 
-Basic usage example:
+
+## Usage as a python import
+
+### Basic usage example:
 ```python
 from keyring_prompt import with_password
 
@@ -21,7 +27,7 @@ with with_password("MyCoolApp:https://someservice", exc_type=SomeServiceAuthoriz
     someservice.login(token)
 ```
 
-Advanced usage example:
+### Advanced usage example:
 ```python
 import os
 from keyring_prompt import delete_credential, get_credential
@@ -47,4 +53,35 @@ try:
     someservice.login(creds.username, creds.password)
 except SomeServiceAuthorizationError:
     delete_credential(cred_name)
+```
+
+
+## Commandline usage
+
+### `keyring-prompt-run`
+
+`keyring-prompt-run` resolves one or more credentials,
+assigns them to environment variables only in the child process environment,
+and then replaces itself with that command.
+
+It is useful for running programs that accept credentials only through environment variables.
+
+```powershell
+keyring-prompt-run `
+  --env FOOBAR_USERNAME=username:something.com `
+  --env FOOBAR_PASSWORD=password:something.com `
+  -- something
+```
+
+For every credential, the command checks keyring first,
+then the named environment variable,
+then shows a prompt and stores the entered value in the keyring.
+
+Use `--prompt cli` in headless environments to prompt on the commandline instead of gui (default),
+or `--prompt none` in CI environments to fail rather than prompt.
+
+### `keyring-prompt-delete`
+
+```powershell
+keyring-prompt-delete username:something.com password:something.com
 ```

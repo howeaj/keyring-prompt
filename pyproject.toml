@@ -1,0 +1,23 @@
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14"]
+build-backend = "uv_build"
+
+[project]
+name = "keyring-prompt"
+version = "0.1.0"
+description = "Retrieve credentials from the system keyring, with optional environment and interactive fallbacks."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = [
+    "keyring>=25",
+]
+
+[project.scripts]
+keyring-prompt-delete = "keyring_prompt.delete:main"
+keyring-prompt-run = "keyring_prompt.runner:main"
+
+[tool.uv.build-backend]
+module-name = "keyring_prompt"
+module-root = ""
+

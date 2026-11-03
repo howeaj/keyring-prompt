@@ -34,9 +34,11 @@ except ImportError:
 
 try:
     import tkinter as tk
-    import tkinter.simpledialog
+    from tkinter import simpledialog
 except ImportError:
-    warnings.warn("TKinter not available; can't request creds via GUI", ImportWarning)
+    tk = None
+    simpledialog = None
+    warnings.warn("Tkinter not available; can't request creds via GUI", ImportWarning)
 
 import keyring
 from keyring.credentials import SimpleCredential
@@ -60,8 +62,14 @@ def _env_var(service: str) -> str:
 
 def _askstring(*args, **kwargs) -> str | None:
     """Wrapper for tkinter.simpledialog.askstring()."""
-    tk.Tk().withdraw()
-    return tkinter.simpledialog.askstring(*args, **kwargs)
+    if tk is None or simpledialog is None:
+        raise NoCredentialsError("Tkinter is unavailable; can't request credentials via GUI")
+    root = tk.Tk()
+    try:
+        root.withdraw()
+        return simpledialog.askstring(*args, **kwargs)
+    finally:
+        root.destroy()
 
 
 def _get_username_gui(service: str) -> str | None:
