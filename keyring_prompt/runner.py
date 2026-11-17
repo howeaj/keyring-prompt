@@ -43,6 +43,13 @@ def _parser() -> argparse.ArgumentParser:
         help="how to handle a missing keyring entry (default: gui)",
     )
     parser.add_argument(
+        "--msg",
+        action="append",
+        default=[],
+        metavar="MESSAGE",
+        help="custom message for the corresponding --env prompt; may be repeated",
+    )
+    parser.add_argument(
         "command",
         nargs=argparse.REMAINDER,
         help="command to run; prefix it with ' -- '",
@@ -59,14 +66,18 @@ def main(argv: Sequence[str] | None = None) -> None:
         command = command[1:]
     if not command:
         parser.error("a command is required after --")
+    if args.msg and len(args.msg) != len(args.env):
+        parser.error("provide one --msg for each --env, or omit --msg")
 
     prompt = None if args.prompt == "none" else args.prompt
     try:
-        for environment_variable, service in args.env:
+        messages = args.msg or [None] * len(args.env)
+        for (environment_variable, service), message in zip(args.env, messages):
             os.environ[environment_variable] = get_password(
                 service,
                 prompt=prompt,
                 env_var=environment_variable,
+                message=message,
             )
     except NoCredentialsError as error:
         parser.error(str(error))

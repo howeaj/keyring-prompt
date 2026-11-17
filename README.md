@@ -77,7 +77,10 @@ For every credential, the command checks keyring first,
 then the named environment variable,
 then shows a prompt and stores the entered value in the keyring.
 
-Use `--prompt cli` in headless environments to prompt on the commandline instead of gui (default),
+Use `--msg "Whatever: "` after each `--env` to prepend a message to that password prompt.
+When requesting multiple credentials, provide one `--msg` for each `--env`, in the same order.
+
+Use `--prompt cli` in headless environments to prompt on the commandline instead of gui,
 or `--prompt none` in CI environments to fail rather than prompt.
 
 ### `keyring-prompt-delete`

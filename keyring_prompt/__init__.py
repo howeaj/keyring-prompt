@@ -77,9 +77,10 @@ def _get_username_gui(service: str) -> str | None:
     return _askstring("Username", f"Username for {service}: ", initialvalue=getpass.getuser())
 
 
-def _get_password_gui(service: str) -> str | None:
-    """Request username via a GUI popup. Returns None if they cancelled."""
-    return _askstring("Password", f"Password for {service}: ", show='*')
+def _get_password_gui(service: str, message: str | None = None) -> str | None:
+    """Request a password via a GUI popup. Returns None if they cancelled."""
+    prefix = (message + "\n\n") if message else ""
+    return _askstring("Password", f"{prefix}Password for {service}: ", show='*')
 
 
 # TODO use instead of stdin if possible
@@ -113,17 +114,19 @@ def _get_username_cli(service: str) -> str:
     return result
 
 
-def _get_password_cli(service: str) -> str:
+def _get_password_cli(service: str, message: str | None = None) -> str:
     """Prompt the user to input a password at commandline."""
+    prefix = (message + "\n") if message else ""
+    prompt_message = f"{prefix}Password for {service}: "
     if sys.version_info >= (3, 14):
-        password = getpass.getpass(prompt=f"Password for {service}:", echo_char="*")
+        password = getpass.getpass(prompt=prompt_message, echo_char="*")
     else:  # mask not available
-        password = getpass.getpass(prompt=f"Password for {service}:")
+        password = getpass.getpass(prompt=prompt_message)
     return password
 
 
 def _get_credential(service: str, *, prompt: Optional[str]="gui", env_vars: Optional[tuple[str, str]]=("",""),
-                    passonly: str="") -> SimpleCredential:
+                    passonly: str="", message: str | None = None) -> SimpleCredential:
     """Shared implementation for get_credential() and get_password().
 
     See those functions for full docs.
@@ -167,11 +170,11 @@ def _get_credential(service: str, *, prompt: Optional[str]="gui", env_vars: Opti
         else:
             if prompt == "cli":
                 username = passonly or _get_username_cli(service)
-                password = _get_password_cli(service)
+                password = _get_password_cli(service, message)
             else:
                 assert(prompt == "gui")
                 username = passonly or _get_username_gui(service)
-                password = _get_password_gui(service)
+                password = _get_password_gui(service, message)
             if None in (username, password):
                 raise NoCredentialsError("User cancelled credentials input prompt")
 
@@ -209,7 +212,8 @@ def get_credential(service: str, *, prompt: Optional[str]="gui",
     return _get_credential(service, prompt=prompt, env_vars=env_vars)
 
 
-def get_password(service: str, *, prompt: Optional[str]="gui", env_var: Optional[str]="") -> str:
+def get_password(service: str, *, prompt: Optional[str]="gui", env_var: Optional[str]="",
+                 message: str | None = None) -> str:
     """Get a password; first tries keyring, then an env var, then prompts the user.
 
     Args:
@@ -221,12 +225,19 @@ def get_password(service: str, *, prompt: Optional[str]="gui", env_var: Optional
                  If this is the empty string, an env var based on `service` is tried:
                  "PY_KEYRING_{service}" with non-alphanumerics replaced with underscores.
                  If this is None, no env vars are tried.
+        message: Optional custom message to display when requesting a password.
 
     Raises:
         NoCredentialsError: If no password could be found.
     """
     env_vars = None if env_var is None else ("", env_var)
-    creds = _get_credential(service, prompt=prompt, env_vars=env_vars, passonly="passonly")
+    creds = _get_credential(
+        service,
+        prompt=prompt,
+        env_vars=env_vars,
+        passonly="passonly",
+        message=message,
+    )
     return creds.password
 
 
