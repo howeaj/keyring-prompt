@@ -35,8 +35,10 @@ except ImportError:
 
 try:
     import tkinter as tk
+    from tkinter import font as tkfont
 except ImportError:
     tk = None
+    tkfont = None
     warnings.warn("Tkinter not available; can't request creds via GUI", ImportWarning)
 
 import keyring
@@ -62,7 +64,7 @@ def _env_var(service: str) -> str:
 
 
 class _SelectableStringDialog:
-    """A small Tk string dialog with selectable prompt text and web links."""
+    """A small Tk string dialog with label-style prompt text and web links."""
 
     def __init__(
         self,
@@ -90,30 +92,12 @@ class _SelectableStringDialog:
         self.window.rowconfigure(0, weight=1)
         body.columnconfigure(0, weight=1)
 
-        # Approximate the number of wrapped lines so a long custom message does
-        # not hide text below the entry field.
-        line_count = sum(max(1, (len(line) + 59) // 60) for line in prompt.splitlines())
-        line_count = max(line_count, 1)
-        prompt_text = tk.Text(
-            body,
-            wrap="word",
-            height=min(max(line_count, 2), 8),
-            width=60,
-            borderwidth=0,
-            highlightthickness=0,
-            cursor="xterm",
-        )
-        prompt_text.grid(row=0, column=0, sticky="ew", pady=(0, 8))
-        prompt_text.tag_configure("link", foreground="#0563c1", underline=True)
-        prompt_text.tag_bind("link", "<Enter>", lambda _event: prompt_text.configure(cursor="hand2"))
-        prompt_text.tag_bind("link", "<Leave>", lambda _event: prompt_text.configure(cursor="xterm"))
-        prompt_text.tag_bind("link", "<Button-1>", self.open_link)
-        self._insert_message_text(prompt_text, prompt)
-        prompt_text.configure(state="disabled")
-        if line_count > 8:
-            scrollbar = tk.Scrollbar(body, orient="vertical", command=prompt_text.yview)
-            scrollbar.grid(row=0, column=1, sticky="ns", pady=(0, 8))
-            prompt_text.configure(yscrollcommand=scrollbar.set)
+        prompt_frame = tk.Frame(body, background=body.cget("background"))
+        prompt_frame.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        prompt_frame.columnconfigure(0, weight=1)
+        self.link_font = tkfont.nametofont("TkDefaultFont").copy()
+        self.link_font.configure(underline=True)
+        self._add_prompt_widgets(prompt_frame, prompt)
 
         self.entry = tk.Entry(body, show=show)
         self.entry.grid(row=1, column=0, sticky="ew")
@@ -136,13 +120,9 @@ class _SelectableStringDialog:
         self.window.attributes("-topmost", True)
         self.entry.focus_force()
 
-    def open_link(self, event) -> str:
-        """Open the link under the mouse pointer without changing text selection."""
-        index = event.widget.index(f"@{event.x},{event.y}")
-        for tag in event.widget.tag_names(index):
-            if tag.startswith("https://"):
-                webbrowser.open_new_tab(tag)
-                break
+    def open_url(self, url: str) -> str:
+        """Open a prompt link in the default browser."""
+        webbrowser.open_new_tab(url)
         return "break"
 
     def ok(self, _event=None) -> str:
@@ -164,18 +144,46 @@ class _SelectableStringDialog:
         """Remove punctuation that commonly follows a URL in prose."""
         return url.rstrip(".,;:!?)]}")
 
-    @staticmethod
-    def _insert_message_text(text_widget, message: str) -> None:
-        """Insert message text into the widget, making HTTP URLs clickable."""
+    def _add_prompt_widgets(self, parent, message: str) -> None:
+        """Add wrapping text labels and individual clickable URL labels."""
+        row = 0
+
+        def add_text(text: str) -> None:
+            nonlocal row
+            if not text:
+                return
+            tk.Label(
+                parent,
+                text=text,
+                anchor="w",
+                justify="left",
+                wraplength=500,
+                background=parent.cget("background"),
+            ).grid(row=row, column=0, sticky="ew")
+            row += 1
+
         position = 0
         for match in re.finditer(_URL_REGEX, message):
             url = _SelectableStringDialog._trim_url(match.group())
             if not url:
                 continue
-            text_widget.insert("end", message[position:match.start()])
-            text_widget.insert("end", url, ("link", url))
+            add_text(message[position:match.start()])
+            link = tk.Label(
+                parent,
+                text=url,
+                anchor="w",
+                justify="left",
+                wraplength=500,
+                foreground="#0563c1",  # hyperlink blue
+                background=parent.cget("background"),
+                font=self.link_font,
+                cursor="hand2",
+            )
+            link.grid(row=row, column=0, sticky="w")
+            link.bind("<Button-1>", lambda _event, link_url=url: self.open_url(link_url))
+            row += 1
             position = match.start() + len(url)
-        text_widget.insert("end", message[position:])
+        add_text(message[position:])
 
 
 def _string_dialog(
