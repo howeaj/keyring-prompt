@@ -82,4 +82,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     except NoCredentialsError as error:
         parser.error(str(error))
 
-    os.execvp(command[0], command)
+    try:
+        os.execvp(command[0], command)
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(f"{str(exc)} '{command[0]}'") from None

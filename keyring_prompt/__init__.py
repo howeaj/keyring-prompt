@@ -26,6 +26,7 @@ import re
 import sys
 from typing import Optional
 import warnings
+import webbrowser
 
 try:
     import readline
@@ -34,10 +35,8 @@ except ImportError:
 
 try:
     import tkinter as tk
-    from tkinter import simpledialog
 except ImportError:
     tk = None
-    simpledialog = None
     warnings.warn("Tkinter not available; can't request creds via GUI", ImportWarning)
 
 import keyring
@@ -48,6 +47,8 @@ logger = logging.getLogger("keyring_prompt")
 
 
 _USER = None  # username for keyring functions; unused
+
+_URL_REGEX = r"https?://[^\s<>\"']+"
 
 
 class NoCredentialsError(Exception):
@@ -60,27 +61,148 @@ def _env_var(service: str) -> str:
     return f"PY_KEYRING_{sanitized_service}"
 
 
-def _askstring(*args, **kwargs) -> str | None:
-    """Wrapper for tkinter.simpledialog.askstring()."""
-    if tk is None or simpledialog is None:
+class _SelectableStringDialog:
+    """A small Tk string dialog with selectable prompt text and web links."""
+
+    def __init__(
+        self,
+        parent,
+        title: str,
+        prompt: str,
+        *,
+        initialvalue: str | None = None,
+        show: str | None = None,
+    ) -> None:
+        self.result: str | None = None
+        self.window = tk.Toplevel(parent)
+        self.window.title(title)
+        self.window.transient(parent)
+        self.window.protocol("WM_DELETE_WINDOW", self.cancel)
+        self.window.resizable(True, False)
+
+        body = tk.Frame(self.window, padx=12, pady=12)
+        body.grid(sticky="nsew")
+        self.window.columnconfigure(0, weight=1)
+        self.window.rowconfigure(0, weight=1)
+        body.columnconfigure(0, weight=1)
+
+        # Approximate the number of wrapped lines so a long custom message does
+        # not hide text below the entry field.
+        line_count = sum(max(1, (len(line) + 59) // 60) for line in prompt.splitlines())
+        line_count = max(line_count, 1)
+        prompt_text = tk.Text(
+            body,
+            wrap="word",
+            height=min(max(line_count, 2), 8),
+            width=60,
+            borderwidth=0,
+            highlightthickness=0,
+            cursor="xterm",
+        )
+        prompt_text.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        prompt_text.tag_configure("link", foreground="#0563c1", underline=True)
+        prompt_text.tag_bind("link", "<Enter>", lambda _event: prompt_text.configure(cursor="hand2"))
+        prompt_text.tag_bind("link", "<Leave>", lambda _event: prompt_text.configure(cursor="xterm"))
+        prompt_text.tag_bind("link", "<Button-1>", self.open_link)
+        self._insert_message_text(prompt_text, prompt)
+        prompt_text.configure(state="disabled")
+        if line_count > 8:
+            scrollbar = tk.Scrollbar(body, orient="vertical", command=prompt_text.yview)
+            scrollbar.grid(row=0, column=1, sticky="ns", pady=(0, 8))
+            prompt_text.configure(yscrollcommand=scrollbar.set)
+
+        self.entry = tk.Entry(body, show=show)
+        self.entry.grid(row=1, column=0, sticky="ew")
+        if initialvalue is not None:
+            self.entry.insert(0, initialvalue)
+            self.entry.selection_range(0, "end")
+
+        buttons = tk.Frame(body)
+        buttons.grid(row=2, column=0, sticky="e", pady=(12, 0))
+        tk.Button(buttons, text="OK", width=10, command=self.ok, default="active").grid(
+            row=0, column=0, padx=(0, 6)
+        )
+        tk.Button(buttons, text="Cancel", width=10, command=self.cancel).grid(row=0, column=1)
+
+        self.window.bind("<Return>", self.ok)
+        self.window.bind("<Escape>", self.cancel)
+        self.entry.focus_set()
+
+    def open_link(self, event) -> str:
+        """Open the link under the mouse pointer without changing text selection."""
+        index = event.widget.index(f"@{event.x},{event.y}")
+        for tag in event.widget.tag_names(index):
+            if tag.startswith("https://"):
+                webbrowser.open_new_tab(tag)
+                break
+        return "break"
+
+    def ok(self, _event=None) -> str:
+        self.result = self.entry.get()
+        self.window.destroy()
+        return "break"
+
+    def cancel(self, _event=None) -> str:
+        self.window.destroy()
+        return "break"
+
+    def show(self) -> str | None:
+        self.window.grab_set()
+        self.window.wait_window()
+        return self.result
+
+    @staticmethod
+    def _trim_url(url: str) -> str:
+        """Remove punctuation that commonly follows a URL in prose."""
+        return url.rstrip(".,;:!?)]}")
+
+    @staticmethod
+    def _insert_message_text(text_widget, message: str) -> None:
+        """Insert message text into the widget, making HTTP URLs clickable."""
+        position = 0
+        for match in re.finditer(_URL_REGEX, message):
+            url = _SelectableStringDialog._trim_url(match.group())
+            if not url:
+                continue
+            text_widget.insert("end", message[position:match.start()])
+            text_widget.insert("end", url, ("link", url))
+            position = match.start() + len(url)
+        text_widget.insert("end", message[position:])
+
+
+def _string_dialog(
+    title: str,
+    prompt: str,
+    *,
+    initialvalue: str | None = None,
+    show: str | None = None,
+) -> str | None:
+    """Request a string with a popup dialog box."""
+    if tk is None:
         raise NoCredentialsError("Tkinter is unavailable; can't request credentials via GUI")
     root = tk.Tk()
     try:
         root.withdraw()
-        return simpledialog.askstring(*args, **kwargs)
+        return _SelectableStringDialog(
+            root,
+            title,
+            prompt,
+            initialvalue=initialvalue,
+            show=show,
+        ).show()
     finally:
         root.destroy()
 
 
 def _get_username_gui(service: str) -> str | None:
     """Request username via a GUI popup. Returns None if they cancelled."""
-    return _askstring("Username", f"Username for {service}: ", initialvalue=getpass.getuser())
+    return _string_dialog("Username", f"Username for {service}: ", initialvalue=getpass.getuser())
 
 
 def _get_password_gui(service: str, message: str | None = None) -> str | None:
     """Request a password via a GUI popup. Returns None if they cancelled."""
     prefix = (message + "\n\n") if message else ""
-    return _askstring("Password", f"{prefix}Password for {service}: ", show='*')
+    return _string_dialog("Password", f"{prefix}Password for {service}: ", show='*')
 
 
 # TODO use instead of stdin if possible
