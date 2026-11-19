@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
+import sys
 from collections.abc import Sequence
 
 from . import NoCredentialsError, get_password
@@ -83,6 +85,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         parser.error(str(error))
 
     try:
-        os.execvp(command[0], command)
+        if sys.platform == "win32":
+            # os.exec* on Windows spawns a new process and exits this one, so the
+            # caller loses its stdio pipes. Run the command as a child instead.
+            sys.exit(subprocess.call(command))
+        else:
+            os.execvp(command[0], command)
     except FileNotFoundError as exc:
         raise FileNotFoundError(f"{str(exc)} '{command[0]}'") from None
