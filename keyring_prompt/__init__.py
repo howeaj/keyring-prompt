@@ -76,7 +76,11 @@ class _SelectableStringDialog:
         self.result: str | None = None
         self.window = tk.Toplevel(parent)
         self.window.title(title)
-        self.window.transient(parent)
+
+        # Only set transient if the parent is viewable (otherwise the dialog would also be hidden)
+        if parent.winfo_viewable():
+            self.window.transient(parent)
+
         self.window.protocol("WM_DELETE_WINDOW", self.cancel)
         self.window.resizable(True, False)
 
@@ -126,7 +130,11 @@ class _SelectableStringDialog:
 
         self.window.bind("<Return>", self.ok)
         self.window.bind("<Escape>", self.cancel)
-        self.entry.focus_set()
+
+        # Ensure the dialog appears above other windows (note it may be launched from a background process)
+        self.window.lift()
+        self.window.attributes("-topmost", True)
+        self.entry.focus_force()
 
     def open_link(self, event) -> str:
         """Open the link under the mouse pointer without changing text selection."""
