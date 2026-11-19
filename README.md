@@ -79,6 +79,7 @@ then shows a prompt and stores the entered value in the keyring.
 
 Use `--msg "Whatever: "` after each `--env` to prepend a message to that password prompt.
 When requesting multiple credentials, provide one `--msg` for each `--env`, in the same order.
+Use `--title "My application"` to set the title of every GUI dialog.
 
 Use `--prompt cli` in headless environments to prompt on the commandline instead of gui,
 or `--prompt none` in CI environments to fail rather than prompt.

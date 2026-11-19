@@ -52,6 +52,11 @@ def _parser() -> argparse.ArgumentParser:
         help="custom message for the corresponding --env prompt; may be repeated",
     )
     parser.add_argument(
+        "--title",
+        metavar="TITLE",
+        help="custom title for GUI dialogs",
+    )
+    parser.add_argument(
         "command",
         nargs=argparse.REMAINDER,
         help="command to run; prefix it with ' -- '",
@@ -80,6 +85,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 prompt=prompt,
                 env_var=environment_variable,
                 message=message,
+                title=args.title,
             )
     except NoCredentialsError as error:
         parser.error(str(error))
