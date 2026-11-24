@@ -1,4 +1,4 @@
-"""Launch a command after resolving selected environment variables from keyring."""
+"""Commandline script to launch a command after resolving selected environment variables from keyring."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Delete password entries from the system keyring."""
+"""Commandline script to delete password entries from the system keyring."""
 
 from __future__ import annotations
 

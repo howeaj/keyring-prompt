@@ -1,23 +1,36 @@
-[build-system]
-requires = ["uv_build>=0.13.6,<0.14"]
-build-backend = "uv_build"
 
 [project]
 name = "keyring-prompt"
 version = "0.1.0"
 description = "Retrieve credentials from the system keyring, with optional environment and interactive fallbacks."
+authors = [{name="Andrew Howe"}]
 readme = "README.md"
 requires-python = ">=3.10"
-license = { file = "LICENSE" }
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+]
+license = "MIT"
 dependencies = [
     "keyring>=25",
 ]
+
+[project.urls]
+Source = "https://github.com/howeaj/keyring-prompt"
+Changelog = "https://github.com/howeaj/keyring-prompt/blob/main/CHANGELOG.md"
+Issues = "https://github.com/howeaj/keyring-prompt/issues"
 
 [project.scripts]
 keyring-prompt-delete = "keyring_prompt.delete:main"
 keyring-prompt-run = "keyring_prompt.runner:main"
 
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14"]
+build-backend = "uv_build"
+
 [tool.uv.build-backend]
 module-name = "keyring_prompt"
 module-root = ""
-

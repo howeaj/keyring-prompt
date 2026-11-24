@@ -1,5 +1,6 @@
 keyring-prompt is a python package that wraps [keyring](https://pypi.org/project/keyring/),
-providing simple interactive GUI or CLI user input for missing credentials.
+providing simple interactive GUI or CLI user input for missing credentials
+to let python apps easily provide a decent user experience for secure credentials entry.
 
 A call to `get_password()` or `get_credential()`:
 - First attempts to retrieve from keyring.
@@ -7,10 +8,10 @@ A call to `get_password()` or `get_credential()`:
 - If this fails, requests user entry and saves in keyring.
 
 If the user-provided credentials are invalid, call `delete_password()` or `delete_credential()`
-to clear them for re-entry on next attempt.
+to clear them for re-entry on next attempt. `with_password()` is provided as a context manager to do this easily.
 
 This package also provides command-line programs `keyring-prompt-run` and `keyring-prompt-delete`
-to easily supply keyring credentials to other commands via environment variables.
+to easily supply keyring credentials to other programs via environment variables.
 
 Installation:
 
@@ -66,26 +67,35 @@ and then replaces itself with that command.
 
 It is useful for running programs that accept credentials only through environment variables.
 
-```powershell
-keyring-prompt-run `
-  --env FOOBAR_USERNAME=username:something.com `
-  --env FOOBAR_PASSWORD=password:something.com `
-  -- something
+### Basic usage example:
+```bash
+keyring-prompt-run \
+  --env FOOBAR_PASSWORD=myprogram:something.com:password \
+  -- myprogram
+```
+
+### Advanced usage example:
+```bash
+keyring-prompt-run \
+  --title "myprogram credentials" \
+  --env FOOBAR_USERNAME=myprogram:something.com:username \
+  --msg "Extra message that appears before the username prompt" \
+  --env FOOBAR_PASSWORD=myprogram:something.com:password \
+  --msg "Extra message that appears before the password prompt" \
+  -- myprogram
 ```
 
 For every credential, the command checks keyring first,
 then the named environment variable,
 then shows a prompt and stores the entered value in the keyring.
 
-Use `--msg "Whatever: "` after each `--env` to prepend a message to that password prompt.
-When requesting multiple credentials, provide one `--msg` for each `--env`, in the same order.
-Use `--title "My application"` to set the title of every GUI dialog.
-
 Use `--prompt cli` in headless environments to prompt on the commandline instead of gui,
 or `--prompt none` in CI environments to fail rather than prompt.
 
 ### `keyring-prompt-delete`
 
-```powershell
-keyring-prompt-delete username:something.com password:something.com
+Delete entries from the keyring to allow re-entry.
+
+```bash
+keyring-prompt-delete myprogram:something.com:username myprogram:something.com:password
 ```
